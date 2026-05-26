@@ -1,6 +1,6 @@
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from ics import Calendar, Event
 import pytz
 
@@ -19,18 +19,18 @@ MAJOR_RELEASES = {
 }
 
 def fetch_fred_releases():
-    """Fetches upcoming and recent release dates from the FRED API."""
+    """Fetches release dates from FRED using a rolling historical window."""
     if not FRED_API_KEY:
         raise ValueError("Please provide a valid FRED API key.")
 
-    # Format today's date as YYYY-MM-DD to force FRED to look forward
-    today_str = datetime.today().strftime("%Y-%m-%d")
+    # Look back 30 days to catch recent releases alongside future ones
+    start_date = (datetime.today() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     url = "https://api.stlouisfed.org/fred/releases/dates"
     params = {
         "api_key": FRED_API_KEY,
         "file_type": "json",
-        "realtime_start": today_str,
+        "realtime_start": start_date,
         "limit": 1000
     }
 
@@ -76,12 +76,19 @@ def generate_ical():
             except Exception as e:
                 print(f"Skipping malformed event on date {date_str}: {e}")
 
-    if count > 0:
-        with open(OUTPUT_FILE, "w") as f:
-            f.writelines(cal.serialize_iter())
-        print(f"Success! Generated {OUTPUT_FILE} with {count} upcoming events.")
-    else:
-        print("No matching major release dates found to save.")
+    # Always generate the file, even with a baseline notice if empty
+    if count == 0:
+        event = Event()
+        event.name = "🔄 Macro Calendar Active"
+        event.begin = tz.localize(datetime.today())
+        event.duration = {"minutes": 15}
+        event.description = "Pipeline running successfully. Awaiting next FRED schedule release update."
+        cal.events.add(event)
+        count += 1
+
+    with open(OUTPUT_FILE, "w") as f:
+        f.writelines(cal.serialize_iter())
+    print(f"Success! Generated {OUTPUT_FILE} with data points.")
 
 if __name__ == "__main__":
     generate_ical()
