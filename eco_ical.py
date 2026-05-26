@@ -20,7 +20,7 @@ MAJOR_RELEASES = {
 
 def fetch_fred_releases():
     """Fetches upcoming and recent release dates from the FRED API."""
-   if not FRED_API_KEY:
+    if not FRED_API_KEY:
         raise ValueError("Please provide a valid FRED API key.")
 
     # Format today's date as YYYY-MM-DD to force FRED to look forward
@@ -30,65 +30,58 @@ def fetch_fred_releases():
     params = {
         "api_key": FRED_API_KEY,
         "file_type": "json",
-        "limit": 1000,
-        "include_release_dates_with_no_data": "true",
-        "realtime_start": today_str,  # CRITICAL: Only pull data active from today forward
-        "order_by": "release_date",
-        "sort_order": "asc"          # Chronological order (soonest events first)
+        "realtime_start": today_str,
+        "limit": 1000
     }
 
-    print(f"Fetching upcoming data from FRED API (Starting from {today_str})...")
-    response = requests.get(url, params=params)
-    
-    if response.status_code != 200:
-        raise Exception(f"FRED API Error ({response.status_code}): {response.text}")
-        
-    return response.json().get("release_dates", [])
-
-def build_ical():
-    """Filters FRED data and generates the .ics file."""
     try:
-        raw_releases = fetch_fred_releases()
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        return response.json().get("release_dates", [])
     except Exception as e:
-        print(f"Failed to fetch data: {e}")
+        print(f"Error fetching data from FRED: {e}")
+        return []
+
+def generate_ical():
+    print("Starting FRED data fetch...")
+    releases = fetch_fred_releases()
+    
+    if not releases:
+        print("No release data found or failed to fetch.")
         return
 
     cal = Calendar()
+    tz = pytz.timezone("US/Eastern")
     count = 0
 
-    print("Filtering releases and generating iCal events...")
-    for item in raw_releases:
-        release_id = item.get("release_id")
-        
+    for r in releases:
+        release_id = r.get("release_id")
         if release_id in MAJOR_RELEASES:
-            release_name = MAJOR_RELEASES[release_id]
-            date_str = item.get("date") 
+            event_name = MAJOR_RELEASES[release_id]
+            date_str = r.get("date") # YYYY-MM-DD
             
-            event_date = datetime.strptime(date_str, "%Y-%m-%d")
-            
-            # Double check to prevent any historical bleed-through
-            if event_date.date() < datetime.today().date():
-                continue
+            try:
+                # Parse date and set event for 8:30 AM EST (standard release time)
+                release_date = datetime.strptime(date_str, "%Y-%m-%d")
+                localized_datetime = tz.localize(datetime(release_date.year, release_date.month, release_date.day, 8, 30))
                 
-            event = Event()
-            event.name = f"⚠️ ECO: {release_name}"
-            event.begin = event_date.date()
-            event.make_all_day()
-            
-            event.description = (
-                f"Major US Government Economic Announcement.\n"
-                f"FRED Release ID: {release_id}\n"
-                f"Data Source: Federal Reserve Bank of St. Louis"
-            )
-            event.categories = {"Economic Calendar", "Macro"}
-            
-            cal.events.add(event)
-            count += 1
+                event = Event()
+                event.name = f"⚠️ {event_name}"
+                event.begin = localized_datetime
+                event.duration = {"minutes": 30}
+                event.description = f"Macro Data Release\nFRED Release ID: {release_id}"
+                
+                cal.events.add(event)
+                count += 1
+            except Exception as e:
+                print(f"Skipping malformed event on date {date_str}: {e}")
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.writelines(cal.serialize_iter())
-        
-    print(f"Success! Generated '{OUTPUT_FILE}' with {count} upcoming macro events.")
+    if count > 0:
+        with open(OUTPUT_FILE, "w") as f:
+            f.writelines(cal.serialize_iter())
+        print(f"Success! Generated {OUTPUT_FILE} with {count} upcoming events.")
+    else:
+        print("No matching major release dates found to save.")
 
 if __name__ == "__main__":
-    build_ical()
+    generate_ical()
