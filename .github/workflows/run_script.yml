@@ -2,9 +2,8 @@ name: Update Eco Calendar
 
 on:
   schedule:
-    # Runs at 00:00 UTC every Sunday night
     - cron: '0 0 * * 0'
-  workflow_dispatch: # Adds the manual run button
+  workflow_dispatch: 
 
 jobs:
   build-and-run:
@@ -13,13 +12,15 @@ jobs:
     permissions:
       contents: write
 
-    # Forces the actions to run on the modern Node 24 environment
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
     - name: Checkout repository code
       uses: actions/checkout@v4
+      with:
+        # Uses your repository's native token to grant full push clearance
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -38,17 +39,16 @@ jobs:
 
     - name: Commit and Push .ics file
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        
-        # Pull any remote changes to prevent exit code 128 conflicts
-        git pull origin main --rebase
+        # Setup git identity using the repository token for authentication
+        git config --global user.name "reedaero"
+        git config --global user.email "reedaero@users.noreply.github.com"
         
         git add major_us_eco_calendar.ics
         
         if git diff --staged --quiet; then
           echo "No changes to the calendar file detected."
         else
-          git commit -m "Automated Sync: Updated major economic calendar"
-          git push origin main
+          git commit -m "Automated Sync: Updated major economic calendar [skip ci]"
+          # Explicitly pass the built-in authentication token to the push command
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/reedaero/fred-macro-calendar.git main
         fi
