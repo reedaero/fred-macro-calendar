@@ -34,9 +34,8 @@ jobs:
         FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       run: python eco_ical.py
 
-    # Foolproof step: Uses an official action to force-commit the calendar file safely
     - name: Auto-commit calendar file
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "Automated Sync: Updated major economic calendar"
-        file_pattern: '**/*.ics' # The double asterisk searches all folders and subfolders
+        file_pattern: 'major_us_eco_calendar.ics'
