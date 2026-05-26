@@ -39,4 +39,4 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "Automated Sync: Updated major economic calendar"
-        file_pattern: '*.ics'
+        file_pattern: '**/*.ics' # The double asterisk searches all folders and subfolders
