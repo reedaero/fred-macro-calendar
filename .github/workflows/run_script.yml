@@ -18,9 +18,6 @@ jobs:
     steps:
     - name: Checkout repository code
       uses: actions/checkout@v4
-      with:
-        # Uses your repository's native token to grant full push clearance
-        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -37,18 +34,9 @@ jobs:
         FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
       run: python eco_ical.py
 
-    - name: Commit and Push .ics file
-      run: |
-        # Setup git identity using the repository token for authentication
-        git config --global user.name "reedaero"
-        git config --global user.email "reedaero@users.noreply.github.com"
-        
-        git add major_us_eco_calendar.ics
-        
-        if git diff --staged --quiet; then
-          echo "No changes to the calendar file detected."
-        else
-          git commit -m "Automated Sync: Updated major economic calendar [skip ci]"
-          # Explicitly pass the built-in authentication token to the push command
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/reedaero/fred-macro-calendar.git main
-        fi
+    # Foolproof step: Uses an official action to force-commit the calendar file safely
+    - name: Auto-commit calendar file
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Automated Sync: Updated major economic calendar"
+        file_pattern: 'major_us_eco_calendar.ics'
