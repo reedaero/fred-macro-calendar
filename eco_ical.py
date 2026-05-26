@@ -20,7 +20,7 @@ MAJOR_RELEASES = {
 
 def fetch_fred_releases():
     """Fetches upcoming and recent release dates from the FRED API."""
-    if FRED_API_KEY == "YOUR_FRED_API_KEY_HERE" or not FRED_API_KEY:
+   if not FRED_API_KEY:
         raise ValueError("Please provide a valid FRED API key.")
 
     # Format today's date as YYYY-MM-DD to force FRED to look forward
