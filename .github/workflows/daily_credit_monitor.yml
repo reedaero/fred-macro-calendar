@@ -1,0 +1,33 @@
+name: Daily Credit & Private Debt Monitor
+
+on:
+  schedule:
+    # Runs automatically every single morning at 6:00 AM EST (11:00 AM UTC)
+    - cron: '0 11 * * *'
+  workflow_dispatch: # Allows you to manually click a button to run it instantly anytime
+
+jobs:
+  check-credit-markets:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests yfinance
+
+    - name: Execute Monitor Script
+      env:
+        # Maps your secure repository secrets straight into the code environment variables
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+      run: python junk_monitor2.py
